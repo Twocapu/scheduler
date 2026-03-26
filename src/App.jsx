@@ -1,27 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from './AuthContext'
-
-const defaultTasks = [
-  { id: 1, text: 'Begin my ADHD journey', type: 'simple', completed: false },
-  { id: 2, text: 'Drink water cups', type: 'counter', current: 4, total: 8, completed: false },
-  { id: 3, text: 'Create a social media plan', type: 'simple', completed: false },
-  { id: 4, text: 'Brush teeth', type: 'simple', completed: true },
-  { id: 5, text: 'Do homework', type: 'simple', completed: true },
-  { id: 6, text: 'Call Mom', type: 'simple', completed: true },
-  { id: 7, text: 'Make breakfast', type: 'simple', completed: true },
-]
+import { supabase } from './supabase'
 
 export default function App() {
   const { user, signInWithGoogle, signOut } = useAuth()
   
-  const [tasks, setTasks] = useState(() => {
-    const saved = localStorage.getItem('tasks')
-    if (saved) {
-      try { return JSON.parse(saved) } catch(e) { return defaultTasks }
-    }
-    return defaultTasks
-  })
-  
+  const [tasks, setTasks] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
   const [isManageView, setIsManageView] = useState(false)
   
   const [newTaskName, setNewTaskName] = useState('')
@@ -29,42 +14,86 @@ export default function App() {
   const [newTaskTarget, setNewTaskTarget] = useState(1)
 
   useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks))
-  }, [tasks])
+    if (user) {
+      fetchTasks()
+    } else {
+      setTasks([])
+    }
+  }, [user])
 
-  const toggleTask = (id) => {
-    if (isManageView) return
-    setTasks(tasks.map(t => {
-      if (t.id === id) {
-        let current = t.current
-        if (t.type === 'counter') {
-          current = !t.completed ? t.total : 0
-        }
-        return { ...t, current, completed: !t.completed }
-      }
-      return t
-    }))
+  const fetchTasks = async () => {
+    setIsLoading(true)
+    const { data, error } = await supabase
+      .from('todos')
+      .select('*')
+      .order('created_at', { ascending: true })
+      
+    if (error) {
+      console.error('Error fetching tasks:', error.message)
+    } else {
+      setTasks(data || [])
+    }
+    setIsLoading(false)
   }
 
-  const updateCounter = (e, id, delta) => {
-    if (isManageView) return
+  const toggleTask = async (id) => {
+    if (isManageView || !user) return
+    const task = tasks.find(t => t.id === id)
+    if (!task) return
+
+    let current = task.current
+    if (task.type === 'counter') {
+      current = !task.completed ? task.total : 0
+    }
+    const newCompleted = !task.completed
+
+    // Optimistic update
+    setTasks(tasks.map(t => t.id === id ? { ...t, current, completed: newCompleted } : t))
+    
+    // DB update
+    const { error } = await supabase
+      .from('todos')
+      .update({ completed: newCompleted, current })
+      .eq('id', id)
+      
+    if (error) {
+       console.error(error)
+       fetchTasks() // revert
+    }
+  }
+
+  const updateCounter = async (e, id, delta) => {
+    if (isManageView || !user) return
     e.stopPropagation()
-    setTasks(tasks.map(t => {
-      if (t.id === id && t.type === 'counter') {
-        const current = Math.max(0, Math.min(t.total, t.current + delta))
-        return { ...t, current, completed: current === t.total }
-      }
-      return t
-    }))
+    const task = tasks.find(t => t.id === id)
+    if (!task || task.type !== 'counter') return
+
+    const newCurrent = Math.max(0, Math.min(task.total, task.current + delta))
+    const newCompleted = newCurrent === task.total
+
+    // Optimistic update
+    setTasks(tasks.map(t => t.id === id ? { ...t, current: newCurrent, completed: newCompleted } : t))
+
+    const { error } = await supabase
+      .from('todos')
+      .update({ current: newCurrent, completed: newCompleted })
+      .eq('id', id)
+
+    if (error) {
+      console.error(error)
+      fetchTasks() // revert
+    }
   }
 
-  const addTask = () => {
+  const addTask = async () => {
+    if (!user) return alert('Please login first to add tasks.')
     if (!newTaskName.trim()) return alert('Please enter a task name.')
+    
     const newTask = {
-      id: Date.now(),
       text: newTaskName.trim(),
       type: newTaskType,
-      completed: false
+      completed: false,
+      user_id: user.id
     }
     if (newTask.type === 'counter') {
       const target = parseInt(newTaskTarget, 10)
@@ -72,32 +101,56 @@ export default function App() {
       newTask.current = 0
       newTask.total = target
     }
-    setTasks([...tasks, newTask])
-    setNewTaskName('')
+
+    const { data, error } = await supabase
+      .from('todos')
+      .insert([newTask])
+      .select()
+
+    if (error) {
+      console.error(error)
+      alert('Error adding task: ' + error.message)
+    } else if (data) {
+      setTasks([...tasks, data[0]])
+      setNewTaskName('')
+      setNewTaskTarget(1)
+    }
   }
 
-  const editTask = (id) => {
+  const editTask = async (id) => {
     const task = tasks.find(t => t.id === id)
     if (!task) return
     const newName = prompt('Enter new task name:', task.text)
     if (newName && newName.trim()) {
-      let updatedTask = { ...task, text: newName.trim() }
+      let updates = { text: newName.trim() }
       if (task.type === 'counter') {
         const newTotalStr = prompt(`Enter new total target (current is ${task.total}):`, task.total)
         const newTotal = parseInt(newTotalStr, 10)
         if (!isNaN(newTotal) && newTotal > 0) {
-          updatedTask.total = newTotal
-          updatedTask.current = Math.min(task.current, newTotal)
-          updatedTask.completed = updatedTask.current === newTotal
+          updates.total = newTotal
+          updates.current = Math.min(task.current, newTotal)
+          updates.completed = updates.current === newTotal
         }
       }
-      setTasks(tasks.map(t => t.id === id ? updatedTask : t))
+
+      setTasks(tasks.map(t => t.id === id ? { ...t, ...updates } : t))
+
+      const { error } = await supabase.from('todos').update(updates).eq('id', id)
+      if (error) {
+        console.error(error)
+        fetchTasks()
+      }
     }
   }
 
-  const deleteTask = (id) => {
+  const deleteTask = async (id) => {
     if (window.confirm('Are you sure you want to delete this task?')) {
       setTasks(tasks.filter(t => t.id !== id))
+      const { error } = await supabase.from('todos').delete().eq('id', id)
+      if (error) {
+         console.error(error)
+         fetchTasks()
+      }
     }
   }
 
@@ -106,7 +159,7 @@ export default function App() {
 
   return (
     <>
-      <header className="bg-[#dcffe7] dark:bg-emerald-950 docked full-width top-0 z-50 sticky">
+      <header className="bg-[#dcffe7] dark:bg-emerald-950 docked full-width top-0 z-50 sticky shadow-sm">
         <div className="flex justify-between items-center px-6 py-6 w-full max-w-2xl mx-auto">
           <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsManageView(false)}>
             <h1 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold tracking-tight text-[#006a30] dark:text-emerald-400">
@@ -117,7 +170,7 @@ export default function App() {
           <div className="flex items-center gap-4">
             {user ? (
               <div className="flex items-center gap-3">
-                <div className="text-sm font-semibold text-on-surface flex flex-col items-end">
+                <div className="text-sm font-semibold text-on-surface hidden md:flex flex-col items-end">
                   <span>{user.user_metadata?.full_name || user.email}</span>
                 </div>
                 {user.user_metadata?.avatar_url && (
@@ -142,7 +195,26 @@ export default function App() {
         </div>
       </header>
 
-      {!isManageView ? (
+      {!user ? (
+        <main className="max-w-2xl mx-auto px-6 mt-16 text-center">
+          <div className="bg-white/60 rounded-2xl p-10 shadow-sm border border-outline-variant/20 inline-block">
+             <span className="material-symbols-outlined text-6xl text-primary/40 mb-4 block">fact_check</span>
+             <h2 className="text-2xl font-bold text-on-surface mb-2">Welcome to Today</h2>
+             <p className="text-on-surface-variant mb-6">Log in to safely store and manage your daily tasks.</p>
+             <button onClick={signInWithGoogle} className="bg-primary hover:bg-primary-dim text-on-primary font-bold py-3 px-8 rounded-full transition-all shadow-md active:scale-95">
+               Log in with Google
+             </button>
+          </div>
+        </main>
+      ) : isLoading ? (
+        <main className="max-w-2xl mx-auto px-6 mt-16 text-center">
+           <div className="animate-pulse space-y-4">
+              <div className="h-16 bg-surface-variant/30 rounded-xl w-full"></div>
+              <div className="h-16 bg-surface-variant/30 rounded-xl w-full"></div>
+              <div className="h-16 bg-surface-variant/30 rounded-xl w-full"></div>
+           </div>
+        </main>
+      ) : !isManageView ? (
         <main className="max-w-2xl mx-auto px-6 space-y-8 block">
           <section className="space-y-6 pt-2">
             {activeTasks.map(task => (
@@ -194,6 +266,12 @@ export default function App() {
                 </div>
               </>
             )}
+
+            {tasks.length === 0 && (
+               <div className="text-center py-12">
+                 <p className="text-on-surface-variant text-lg">Your list is empty. Click the settings icon to add tasks!</p>
+               </div>
+            )}
           </section>
         </main>
       ) : (
@@ -216,11 +294,11 @@ export default function App() {
                 {newTaskType === 'counter' && (
                   <div className="w-24">
                     <label className="block text-sm font-medium text-on-surface mb-1">Target</label>
-                    <input type="number" value={newTaskTarget} onChange={e => setNewTaskTarget(e.target.value)} className="w-full rounded-lg border-outline-variant/30 bg-surface/50 focus:ring-primary focus:border-primary px-4 py-2" min="1" />
+                    <input type="number" value={newTaskTarget} onChange={e => setNewTaskTarget(Number(e.target.value))} className="w-full rounded-lg border-outline-variant/30 bg-surface/50 focus:ring-primary focus:border-primary px-4 py-2" min="1" />
                   </div>
                 )}
               </div>
-              <button onClick={addTask} className="w-full bg-primary text-on-primary font-bold py-3 rounded-xl hover:bg-primary-dim transition-colors mt-2">Add Task</button>
+              <button onClick={addTask} className="w-full bg-primary text-on-primary font-bold py-3 rounded-xl hover:bg-primary-dim transition-colors mt-2 shadow-sm">Add Task</button>
             </div>
           </div>
 
@@ -252,11 +330,13 @@ export default function App() {
         </main>
       )}
 
-      <button onClick={() => setIsManageView(!isManageView)} className="fixed bottom-8 right-8 w-16 h-16 rounded-full bg-primary text-white shadow-lg flex items-center justify-center z-[100] active:scale-95 transition-all focus:outline-none focus:ring-4 focus:ring-primary/30 group">
-        <span className="material-symbols-outlined text-3xl transition-transform duration-500 group-hover:rotate-180">
-          {isManageView ? 'close' : 'settings'}
-        </span>
-      </button>
+      {user && (
+        <button onClick={() => setIsManageView(!isManageView)} className="fixed bottom-8 right-8 w-16 h-16 rounded-full bg-primary text-white shadow-lg flex items-center justify-center z-[100] active:scale-95 transition-all focus:outline-none focus:ring-4 focus:ring-primary/30 group">
+          <span className="material-symbols-outlined text-3xl transition-transform duration-500 group-hover:rotate-180">
+            {isManageView ? 'close' : 'settings'}
+          </span>
+        </button>
+      )}
     </>
   )
 }
