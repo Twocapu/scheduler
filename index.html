@@ -110,14 +110,45 @@
 </div>
 </div>
 </header>
-<main class="max-w-2xl mx-auto px-6 space-y-8">
+<main id="view-today" class="max-w-2xl mx-auto px-6 space-y-8 block">
 <!-- Task List Area -->
 <section class="space-y-6 pt-2" id="task-list">
 <!-- Dynamic task list rendered by JS -->
 </section>
+</main>
+
+<main id="view-manage" class="max-w-2xl mx-auto px-6 space-y-8 hidden pb-32 pt-2">
+  <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
+    <h2 class="text-xl font-bold text-on-surface mb-4">Add New Task</h2>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-on-surface mb-1">Task Name</label>
+        <input type="text" id="new-task-name" class="w-full rounded-lg border-outline-variant/30 bg-surface/50 focus:ring-primary focus:border-primary px-4 py-2" placeholder="e.g. Read 10 pages">
+      </div>
+      <div class="flex gap-4 items-end">
+        <div class="flex-1">
+          <label class="block text-sm font-medium text-on-surface mb-1">Type</label>
+          <select id="new-task-type" onchange="toggleCounterInput()" class="w-full rounded-lg border-outline-variant/30 bg-surface/50 focus:ring-primary focus:border-primary px-4 py-2">
+            <option value="simple">Simple (Check)</option>
+            <option value="counter">Counter (e.g. 0/8)</option>
+          </select>
+        </div>
+        <div id="counter-input-group" class="hidden w-24">
+          <label class="block text-sm font-medium text-on-surface mb-1">Target</label>
+          <input type="number" id="new-task-target" class="w-full rounded-lg border-outline-variant/30 bg-surface/50 focus:ring-primary focus:border-primary px-4 py-2" value="1" min="1">
+        </div>
+      </div>
+      <button onclick="addTask()" class="w-full bg-primary text-on-primary font-bold py-3 rounded-xl hover:bg-primary-dim transition-colors mt-2">Add Task</button>
+    </div>
+  </div>
+
+  <div class="space-y-4" id="manage-list">
+    <!-- Manage list rendered by JS -->
+  </div>
+</main>
 
 <script>
-  let tasks = [
+  const defaultTasks = [
     { id: 1, text: 'Begin my ADHD journey', type: 'simple', completed: false },
     { id: 2, text: 'Drink water cups', type: 'counter', current: 4, total: 8, completed: false },
     { id: 3, text: 'Create a social media plan', type: 'simple', completed: false },
@@ -127,7 +158,145 @@
     { id: 7, text: 'Make breakfast', type: 'simple', completed: true },
   ];
 
+  let tasks = JSON.parse(localStorage.getItem('tasks')) || defaultTasks;
+  let isManageView = false;
+
+  function saveTasks() {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+  }
+
+  function toggleManageView() {
+    isManageView = !isManageView;
+    const viewToday = document.getElementById('view-today');
+    const viewManage = document.getElementById('view-manage');
+    const fabIcon = document.getElementById('fab-icon');
+    const headerTitle = document.querySelector('header h1');
+
+    if(isManageView) {
+      viewToday.classList.remove('block');
+      viewToday.classList.add('hidden');
+      viewManage.classList.remove('hidden');
+      viewManage.classList.add('block');
+      fabIcon.innerText = 'close';
+      headerTitle.innerText = 'Manage Tasks';
+      renderManageList();
+    } else {
+      viewManage.classList.remove('block');
+      viewManage.classList.add('hidden');
+      viewToday.classList.remove('hidden');
+      viewToday.classList.add('block');
+      fabIcon.innerText = 'settings';
+      headerTitle.innerText = 'Today';
+      renderTasks();
+    }
+  }
+
+  function toggleCounterInput() {
+    const type = document.getElementById('new-task-type').value;
+    const counterGroup = document.getElementById('counter-input-group');
+    if(type === 'counter') {
+      counterGroup.classList.remove('hidden');
+    } else {
+      counterGroup.classList.add('hidden');
+    }
+  }
+
+  function addTask() {
+    const nameInput = document.getElementById('new-task-name');
+    const typeInput = document.getElementById('new-task-type');
+    const targetInput = document.getElementById('new-task-target');
+
+    const text = nameInput.value.trim();
+    if(!text) return alert('Please enter a task name.');
+
+    const newTask = {
+      id: Date.now(),
+      text: text,
+      type: typeInput.value,
+      completed: false
+    };
+
+    if(newTask.type === 'counter') {
+      const target = parseInt(targetInput.value);
+      if(isNaN(target) || target < 1) return alert('Please enter a valid target for the counter.');
+      newTask.current = 0;
+      newTask.total = target;
+    }
+
+    tasks.push(newTask);
+    saveTasks();
+    nameInput.value = '';
+    
+    renderManageList();
+  }
+
+  function deleteTask(id) {
+    if(confirm('Are you sure you want to delete this task?')) {
+      tasks = tasks.filter(t => t.id !== id);
+      saveTasks();
+      renderManageList();
+    }
+  }
+
+  function editTask(id) {
+    const task = tasks.find(t => t.id === id);
+    if(!task) return;
+
+    const newName = prompt('Enter new task name:', task.text);
+    if(newName && newName.trim() !== '') {
+      task.text = newName.trim();
+      
+      if(task.type === 'counter') {
+         const newTotalStr = prompt('Enter new total target (current is ' + task.total + '):', task.total);
+         const newTotal = parseInt(newTotalStr);
+         if(!isNaN(newTotal) && newTotal > 0) {
+           task.total = newTotal;
+           task.current = Math.min(task.current, newTotal);
+           task.completed = (task.current === task.total);
+         }
+      }
+      saveTasks();
+      renderManageList();
+    }
+  }
+
+  function renderManageList() {
+    const container = document.getElementById('manage-list');
+    let html = '';
+
+    tasks.forEach(task => {
+      const details = task.type === 'counter' ? `<span class="bg-primary/10 text-primary text-xs font-bold px-2 py-1 rounded-full ml-2">Counter ${task.current}/${task.total}</span>` : `<span class="bg-surface-variant/50 text-on-surface-variant text-xs font-bold px-2 py-1 rounded-full ml-2">Simple</span>`;
+      const status = task.completed ? `<span class="text-xs font-bold text-outline uppercase tracking-widest block mt-1">Completed</span>` : `<span class="text-xs font-bold text-primary uppercase tracking-widest block mt-1">Active</span>`;
+      
+      html += `
+        <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex items-center gap-4 border border-outline-variant/10">
+          <div class="flex-1">
+            <h3 class="text-on-surface font-semibold text-lg inline-block">${task.text}</h3>
+            ${details}
+            ${status}
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="editTask(${task.id})" class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-variant transition-colors group">
+              <span class="material-symbols-outlined text-xl transition-transform group-hover:scale-110">edit</span>
+            </button>
+            <button onclick="deleteTask(${task.id})" class="w-10 h-10 rounded-full bg-error-container/20 flex items-center justify-center text-error hover:bg-error-container hover:text-on-error-container transition-colors group">
+              <span class="material-symbols-outlined text-xl transition-transform group-hover:scale-110">delete</span>
+            </button>
+          </div>
+        </div>
+      `;
+    });
+
+    if(tasks.length === 0) {
+      html = `<div class="text-center py-8 text-on-surface-variant font-medium">No tasks found. Create one above!</div>`;
+    }
+
+    container.innerHTML = html;
+  }
+
+  // Task list functions for "Today" view
   function toggleTask(id) {
+    if(isManageView) return;
     const task = tasks.find(t => t.id === id);
     if (!task) return;
     
@@ -138,10 +307,12 @@
     }
 
     task.completed = !task.completed;
+    saveTasks();
     renderTasks();
   }
 
   function updateCounter(e, id, delta) {
+    if(isManageView) return;
     e.stopPropagation();
     const task = tasks.find(t => t.id === id);
     if (task && task.type === 'counter') {
@@ -151,6 +322,7 @@
       } else {
         task.completed = false;
       }
+      saveTasks();
       renderTasks();
     }
   }
@@ -237,5 +409,4 @@
   // Initialize
   document.addEventListener('DOMContentLoaded', renderTasks);
 </script>
-</main>
-<button class="fixed bottom-8 right-8 w-16 h-16 rounded-full bg-primary text-white shadow-lg flex items-center justify-center z-[100] active:scale-95 transition-all focus:outline-none focus:ring-4 focus:ring-primary/30 group"><span class="material-symbols-outlined text-3xl transition-transform duration-500 group-hover:rotate-180">settings</span></button></body></html>
+<button onclick="toggleManageView()" class="fixed bottom-8 right-8 w-16 h-16 rounded-full bg-primary text-white shadow-lg flex items-center justify-center z-[100] active:scale-95 transition-all focus:outline-none focus:ring-4 focus:ring-primary/30 group"><span id="fab-icon" class="material-symbols-outlined text-3xl transition-transform duration-500 group-hover:rotate-180">settings</span></button></body></html>
