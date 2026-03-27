@@ -1,0 +1,39 @@
+{
+  "header": {
+    "today": "Today",
+    "manageTasks": "Manage Tasks",
+    "logout": "Logout",
+    "login": "Login"
+  },
+  "welcome": {
+    "title": "Welcome to Today",
+    "description": "Log in to safely store and manage your daily tasks.",
+    "loginButton": "Log in with Google"
+  },
+  "tasks": {
+    "completed": "Completed",
+    "allCompleted": "All Tasks Completed!",
+    "emptyList": "Your list is empty. Click the settings icon to add tasks!",
+    "noTasks": "No tasks found. Create one above!",
+    "simple": "Simple",
+    "counter": "Counter",
+    "active": "Active",
+    "pleaseLogin": "Please login first to add tasks.",
+    "pleaseEnterName": "Please enter a task name.",
+    "pleaseEnterValidTarget": "Please enter a valid target.",
+    "errorAdding": "Error adding task: ",
+    "enterNewName": "Enter new task name:",
+    "enterNewTarget": "Enter new total target (current is {{current}}):",
+    "confirmDelete": "Are you sure you want to delete this task?"
+  },
+  "form": {
+    "addNewTask": "Add New Task",
+    "taskName": "Task Name",
+    "placeholder": "e.g. Read 10 pages",
+    "type": "Type",
+    "typeSimple": "Simple (Check)",
+    "typeCounter": "Counter (e.g. 0/8)",
+    "target": "Target",
+    "addTaskButton": "Add Task"
+  }
+}

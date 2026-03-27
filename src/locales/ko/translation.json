@@ -1,0 +1,39 @@
+{
+  "header": {
+    "today": "오늘 할 일",
+    "manageTasks": "작업 관리",
+    "logout": "로그아웃",
+    "login": "로그인"
+  },
+  "welcome": {
+    "title": "Today에 오신 것을 환영합니다",
+    "description": "로그인하여 일일 작업을 안전하게 보관하고 관리하세요.",
+    "loginButton": "Google 계정으로 로그인"
+  },
+  "tasks": {
+    "completed": "완료됨",
+    "allCompleted": "모든 작업을 완료했습니다!",
+    "emptyList": "목록이 비어있습니다. 설정 아이콘을 눌러 추가해보세요!",
+    "noTasks": "작업이 없습니다. 위에서 새로 만들어보세요!",
+    "simple": "단순 확인",
+    "counter": "카운터",
+    "active": "진행 중",
+    "pleaseLogin": "작업을 추가하려면 먼저 로그인해주세요.",
+    "pleaseEnterName": "작업 이름을 입력해주세요.",
+    "pleaseEnterValidTarget": "올바른 목표값을 입력해주세요.",
+    "errorAdding": "작업 추가 중 오류 발생: ",
+    "enterNewName": "새 작업 이름을 입력하세요:",
+    "enterNewTarget": "새 목표값을 입력하세요 (현재 값: {{current}}):",
+    "confirmDelete": "이 작업을 정말 삭제하시겠습니까?"
+  },
+  "form": {
+    "addNewTask": "새 작업 추가",
+    "taskName": "작업 이름",
+    "placeholder": "예: 책 10페이지 읽기",
+    "type": "유형",
+    "typeSimple": "단순 체크",
+    "typeCounter": "카운터 (예: 0/8)",
+    "target": "목표값",
+    "addTaskButton": "작업 추가"
+  }
+}
