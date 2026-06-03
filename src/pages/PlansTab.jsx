@@ -146,11 +146,15 @@ export default function PlansTab() {
               const isToday = dateStr === new Date().toISOString().split('T')[0]
               
               return (
-                <div key={idx} className="flex flex-col items-center justify-start h-10">
-                  <div className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-medium ${isToday ? 'bg-primary text-white' : 'text-on-surface'}`}>
+                <div key={idx} className="relative flex items-center justify-center h-10 w-full">
+                  {/* 일정 확인용 큰 빈 원 */}
+                  {hasPlan && (
+                    <div className="absolute w-9 h-9 rounded-full border-2 border-primary/40 transition-all"></div>
+                  )}
+                  {/* 날짜 및 오늘 표시용 원 */}
+                  <div className={`relative w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold transition-all ${isToday ? 'bg-primary text-white shadow-sm' : 'text-on-surface'}`}>
                     {day}
                   </div>
-                  {hasPlan && <div className="w-1 h-1 bg-error rounded-full mt-1"></div>}
                 </div>
               )
             })}
