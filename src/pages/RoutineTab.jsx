@@ -10,7 +10,7 @@ export default function RoutineTab() {
 
   const [routines, setRoutines] = useState([])
   const [isLoading, setIsLoading] = useState(false)
-  const [isManageView, setIsManageView] = useState(false)
+  const [isAdding, setIsAdding] = useState(false)
 
   const [newRoutineName, setNewRoutineName] = useState('')
   const [newRoutineType, setNewRoutineType] = useState('simple')
@@ -33,7 +33,7 @@ export default function RoutineTab() {
   }
 
   const toggleRoutine = async (id) => {
-    if (isManageView || !user) return
+    if (!user) return
     const routine = routines.find(t => t.id === id)
     if (!routine) return
 
@@ -53,7 +53,7 @@ export default function RoutineTab() {
   }
 
   const updateCounter = async (e, id, delta) => {
-    if (isManageView || !user) return
+    if (!user) return
     e.stopPropagation()
     const routine = routines.find(t => t.id === id)
     if (!routine || routine.type !== 'counter') return
@@ -88,10 +88,12 @@ export default function RoutineTab() {
       setRoutines([...routines, data[0]])
       setNewRoutineName('')
       setNewRoutineTarget(1)
+      setIsAdding(false)
     }
   }
 
-  const editRoutine = async (id) => {
+  const editRoutine = async (e, id) => {
+    e.stopPropagation()
     const routine = routines.find(t => t.id === id)
     if (!routine) return
     const newName = prompt(t('routines.enterNewName'), routine.text)
@@ -113,7 +115,8 @@ export default function RoutineTab() {
     }
   }
 
-  const deleteRoutine = async (id) => {
+  const deleteRoutine = async (e, id) => {
+    e.stopPropagation()
     if (window.confirm(t('routines.confirmDelete'))) {
       setRoutines(routines.filter(t => t.id !== id))
       await supabase.from('routines').delete().eq('id', id)
@@ -121,7 +124,7 @@ export default function RoutineTab() {
   }
 
   const resetAllRoutines = async () => {
-    if (isManageView || !user) return
+    if (!user) return
     setRoutines(routines.map(t => ({ ...t, completed: false, current: t.type === 'counter' ? 0 : t.current })))
     const updatePromises = routines.map(t => {
       const updates = { completed: false }
@@ -137,39 +140,88 @@ export default function RoutineTab() {
 
   return (
     <>
-      <Header 
-        title={isManageView ? t('header.manageTasks') : 'Routine'} 
-        onTitleClick={() => setIsManageView(false)}
-        showChevron={!isManageView}
-      />
-      {isLoading ? (
-        <main className="max-w-2xl mx-auto px-6 mt-16 text-center pb-24">
-          <div className="animate-pulse space-y-4">
-            <div className="h-16 bg-surface-variant/30 rounded-xl w-full"></div>
-            <div className="h-16 bg-surface-variant/30 rounded-xl w-full"></div>
+      <Header title={t('nav.routine')} showChevron={false} />
+      
+      <main className="max-w-2xl mx-auto px-4 pb-28 pt-4">
+        
+        {/* Top Add Button & Form */}
+        {!isAdding ? (
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="w-full mb-6 bg-primary-container/30 hover:bg-primary-container/50 text-primary-fixed-variant font-bold py-4 rounded-xl border border-primary/10 border-dashed transition-all flex justify-center items-center gap-2"
+          >
+            <span className="material-symbols-outlined">add_circle</span>
+            {t('routines.addNewBtn')}
+          </button>
+        ) : (
+          <div className="mb-6 bg-white rounded-2xl p-5 shadow-sm border border-outline-variant/20">
+            <h3 className="font-bold text-on-surface mb-3">{t('form.addNewTask')}</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-on-surface-variant uppercase mb-1">{t('form.taskName')}</label>
+                <input type="text" value={newRoutineName} onChange={e => setNewRoutineName(e.target.value)} className="w-full text-sm rounded-lg border-outline-variant/30 bg-surface/50 border focus:ring-1 focus:ring-primary focus:outline-none px-4 py-3" placeholder={t('form.placeholder')} />
+              </div>
+              <div className="flex gap-4 items-end">
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-on-surface-variant uppercase mb-1">{t('form.type')}</label>
+                  <select value={newRoutineType} onChange={e => setNewRoutineType(e.target.value)} className="w-full text-sm rounded-lg border-outline-variant/30 bg-surface/50 border focus:ring-1 focus:ring-primary focus:outline-none px-4 py-3">
+                    <option value="simple">{t('form.typeSimple')}</option>
+                    <option value="counter">{t('form.typeCounter')}</option>
+                  </select>
+                </div>
+                {newRoutineType === 'counter' && (
+                  <div className="w-24">
+                    <label className="block text-xs font-bold text-on-surface-variant uppercase mb-1">{t('form.target')}</label>
+                    <input type="number" value={newRoutineTarget} onChange={e => setNewRoutineTarget(Number(e.target.value))} className="w-full text-sm rounded-lg border-outline-variant/30 bg-surface/50 border focus:ring-1 focus:ring-primary focus:outline-none px-4 py-3" min="1" />
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => setIsAdding(false)} className="flex-1 bg-surface-variant/30 text-on-surface-variant font-bold py-2.5 rounded-xl text-sm">{t('routines.cancel')}</button>
+                <button onClick={addRoutine} className="flex-1 bg-primary text-on-primary font-bold py-2.5 rounded-xl text-sm">{t('routines.save')}</button>
+              </div>
+            </div>
           </div>
-        </main>
-      ) : !isManageView ? (
-        <main className="max-w-2xl mx-auto px-6 space-y-8 block pb-28 pt-2">
+        )}
+
+        {isLoading ? (
+          <div className="text-center py-10"><span className="material-symbols-outlined animate-spin text-primary text-3xl">refresh</span></div>
+        ) : (
           <section className="space-y-6 pt-2">
             {activeRoutines.map(routine => (
-              <div key={routine.id} onClick={() => toggleRoutine(routine.id)} className="bg-surface-container-lowest rounded-xl p-6 shadow-[0px_10px_30px_rgba(2,54,33,0.03)] flex items-center gap-5 group transition-all hover:bg-white/90 cursor-pointer">
-                {routine.type === 'counter' && (
-                  <div className="bg-primary/10 px-3 py-1 rounded-full">
-                    <span className="text-primary font-bold text-sm tracking-widest">{routine.current}/{routine.total}</span>
-                  </div>
-                )}
-                <div className="flex-1">
-                  <p className="text-on-surface font-semibold text-lg">{routine.text}</p>
+              <div key={routine.id} onClick={() => toggleRoutine(routine.id)} className="bg-surface-container-lowest rounded-xl p-5 shadow-[0px_10px_30px_rgba(2,54,33,0.03)] flex flex-col group transition-all border border-outline-variant/10 hover:border-primary/30 cursor-pointer">
+                
+                <div className="flex justify-between items-start mb-2">
+                   <div className="flex gap-2 items-center">
+                     {routine.type === 'counter' ? (
+                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-primary/10 text-primary`}>
+                         {t('routines.counter')} {routine.current}/{routine.total}
+                       </span>
+                     ) : (
+                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-surface-variant/50 text-on-surface-variant`}>
+                         {t('routines.simple')}
+                       </span>
+                     )}
+                   </div>
+                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                     <button onClick={(e) => editRoutine(e, routine.id)} className="text-outline hover:text-primary transition-colors p-1"><span className="material-symbols-outlined text-sm">edit</span></button>
+                     <button onClick={(e) => deleteRoutine(e, routine.id)} className="text-outline hover:text-error transition-colors p-1"><span className="material-symbols-outlined text-sm">delete</span></button>
+                   </div>
                 </div>
-                {routine.type === 'counter' ? (
-                  <div className="flex items-center gap-2">
-                    <button onClick={(e) => updateCounter(e, routine.id, -1)} className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-primary hover:bg-primary hover:text-on-primary transition-colors active:scale-90"><span className="material-symbols-outlined font-bold">remove</span></button>
-                    <button onClick={(e) => updateCounter(e, routine.id, 1)} className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-primary hover:bg-primary hover:text-on-primary transition-colors active:scale-90"><span className="material-symbols-outlined font-bold">add</span></button>
+
+                <div className="flex items-center gap-5">
+                  <div className="flex-1">
+                    <p className="text-on-surface font-semibold text-lg">{routine.text}</p>
                   </div>
-                ) : (
-                  <div className="w-7 h-7 rounded-full border-2 border-outline-variant/30 flex items-center justify-center bg-transparent group-hover:border-primary transition-colors"></div>
-                )}
+                  {routine.type === 'counter' ? (
+                    <div className="flex items-center gap-2">
+                      <button onClick={(e) => updateCounter(e, routine.id, -1)} className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-primary hover:bg-primary hover:text-on-primary transition-colors active:scale-90"><span className="material-symbols-outlined font-bold">remove</span></button>
+                      <button onClick={(e) => updateCounter(e, routine.id, 1)} className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-primary hover:bg-primary hover:text-on-primary transition-colors active:scale-90"><span className="material-symbols-outlined font-bold">add</span></button>
+                    </div>
+                  ) : (
+                    <div className="w-7 h-7 rounded-full border-2 border-outline-variant/30 flex items-center justify-center bg-transparent group-hover:border-primary transition-colors"></div>
+                  )}
+                </div>
               </div>
             ))}
 
@@ -184,9 +236,25 @@ export default function RoutineTab() {
                 </div>
                 <div className="space-y-4">
                   {completedRoutines.map(routine => (
-                    <div key={routine.id} onClick={() => toggleRoutine(routine.id)} className="bg-surface-variant/30 rounded-lg p-5 flex items-center gap-5 transition-all opacity-80 cursor-pointer hover:opacity-100 group">
-                      <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center group-hover:scale-95 transition-transform"><span className="material-symbols-outlined text-surface text-lg font-bold">check</span></div>
-                      <div className="flex-1"><p className="text-on-surface-variant font-medium line-through decoration-on-surface-variant/40">{routine.text} {routine.type === 'counter' && `(${routine.total}/${routine.total})`}</p></div>
+                    <div key={routine.id} onClick={() => toggleRoutine(routine.id)} className="bg-surface-variant/30 rounded-lg p-4 flex flex-col transition-all cursor-pointer hover:bg-surface-variant/50 group border border-transparent hover:border-outline-variant/30">
+                      
+                      <div className="flex justify-between items-start mb-1">
+                         {routine.type === 'counter' ? (
+                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-primary/10 text-primary`}>
+                             {t('routines.counter')} {routine.current}/{routine.total}
+                           </span>
+                         ) : <div></div>}
+                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity translate-y-[-4px]">
+                           <button onClick={(e) => editRoutine(e, routine.id)} className="text-outline hover:text-primary transition-colors p-1"><span className="material-symbols-outlined text-sm">edit</span></button>
+                           <button onClick={(e) => deleteRoutine(e, routine.id)} className="text-outline hover:text-error transition-colors p-1"><span className="material-symbols-outlined text-sm">delete</span></button>
+                         </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center group-hover:scale-95 transition-transform"><span className="material-symbols-outlined text-surface text-sm font-bold">check</span></div>
+                        <div className="flex-1"><p className="text-on-surface-variant font-medium line-through decoration-on-surface-variant/40">{routine.text}</p></div>
+                      </div>
+
                     </div>
                   ))}
                 </div>
@@ -194,64 +262,11 @@ export default function RoutineTab() {
             )}
 
             {routines.length === 0 && (
-              <div className="text-center py-12"><p className="text-on-surface-variant text-lg">{t('routines.emptyList')}</p></div>
+              <div className="text-center py-12"><p className="text-on-surface-variant text-sm italic">{t('routines.emptyList')}</p></div>
             )}
           </section>
-        </main>
-      ) : (
-        <main className="max-w-2xl mx-auto px-6 space-y-8 block pb-40 pt-2">
-          <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-on-surface mb-4">{t('form.addNewTask')}</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-on-surface mb-1">{t('form.routineName')}</label>
-                <input type="text" value={newRoutineName} onChange={e => setNewRoutineName(e.target.value)} className="w-full rounded-lg border-outline-variant/30 bg-surface/50 focus:ring-primary focus:border-primary px-4 py-2" placeholder={t('form.placeholder')} />
-              </div>
-              <div className="flex gap-4 items-end">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-on-surface mb-1">{t('form.type')}</label>
-                  <select value={newRoutineType} onChange={e => setNewRoutineType(e.target.value)} className="w-full rounded-lg border-outline-variant/30 bg-surface/50 focus:ring-primary focus:border-primary px-4 py-2">
-                    <option value="simple">{t('form.typeSimple')}</option>
-                    <option value="counter">{t('form.typeCounter')}</option>
-                  </select>
-                </div>
-                {newRoutineType === 'counter' && (
-                  <div className="w-24">
-                    <label className="block text-sm font-medium text-on-surface mb-1">{t('form.target')}</label>
-                    <input type="number" value={newRoutineTarget} onChange={e => setNewRoutineTarget(Number(e.target.value))} className="w-full rounded-lg border-outline-variant/30 bg-surface/50 focus:ring-primary focus:border-primary px-4 py-2" min="1" />
-                  </div>
-                )}
-              </div>
-              <button onClick={addRoutine} className="w-full bg-primary text-on-primary font-bold py-3 rounded-xl hover:bg-primary-dim transition-colors mt-2 shadow-sm">{t('form.addRoutineButton')}</button>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {routines.map(routine => (
-              <div key={routine.id} className="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex items-center gap-4 border border-outline-variant/10">
-                <div className="flex-1">
-                  <h3 className="text-on-surface font-semibold text-lg inline-block">{routine.text}</h3>
-                  <span className={`text-xs font-bold px-2 py-1 rounded-full ml-2 ${routine.type === 'counter' ? 'bg-primary/10 text-primary' : 'bg-surface-variant/50 text-on-surface-variant'}`}>
-                    {routine.type === 'counter' ? `${t('routines.counter')} ${routine.current}/${routine.total}` : t('routines.simple')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => editRoutine(routine.id)} className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-variant transition-colors group"><span className="material-symbols-outlined text-xl transition-transform group-hover:scale-110">edit</span></button>
-                  <button onClick={() => deleteRoutine(routine.id)} className="w-10 h-10 rounded-full bg-error-container/20 flex items-center justify-center text-error hover:bg-error-container hover:text-on-error-container transition-colors group"><span className="material-symbols-outlined text-xl transition-transform group-hover:scale-110">delete</span></button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </main>
-      )}
-
-      {user && (
-        <button onClick={() => setIsManageView(!isManageView)} className="fixed bottom-24 right-8 w-16 h-16 rounded-full bg-primary text-white shadow-lg flex items-center justify-center z-[80] active:scale-95 transition-all focus:outline-none focus:ring-4 focus:ring-primary/30 group">
-          <span className="material-symbols-outlined text-3xl transition-transform duration-500 group-hover:rotate-180">
-            {isManageView ? 'close' : 'settings'}
-          </span>
-        </button>
-      )}
+        )}
+      </main>
     </>
   )
 }

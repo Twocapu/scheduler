@@ -35,7 +35,10 @@
     "enterNewName": "Enter new routine name:",
     "enterNewTarget": "Enter new total target (current is {{current}}):",
     "confirmDelete": "Are you sure you want to delete this routine?",
-    "resetAll": "Reset all routines"
+    "resetAll": "Reset all routines",
+    "addNewBtn": "Add New Routine",
+    "cancel": "Cancel",
+    "save": "Save"
   },
   "nav": {
     "routine": "Routine",

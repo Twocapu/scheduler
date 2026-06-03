@@ -11,11 +11,9 @@ export default function PlansTab() {
   const [isLoading, setIsLoading] = useState(false)
   const [viewMode, setViewMode] = useState('list') // 'list' | 'calendar'
   
-  // New Plan form
   const [isAdding, setIsAdding] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newDate, setNewDate] = useState(() => new Date().toISOString().split('T')[0])
-  const [newTime, setNewTime] = useState('12:00')
 
   // Calendar State
   const [currentMonth, setCurrentMonth] = useState(() => new Date())
@@ -30,7 +28,6 @@ export default function PlansTab() {
       .from('plans')
       .select('*')
       .order('date', { ascending: true })
-      .order('time', { ascending: true })
     
     if (error) console.error(error.message)
     else setPlans(data || [])
@@ -38,20 +35,18 @@ export default function PlansTab() {
   }
 
   const addPlan = async () => {
-    if (!newTitle.trim() || !newDate || !newTime) return
+    if (!newTitle.trim() || !newDate) return
     const plan = {
       user_id: user.id,
       title: newTitle.trim(),
       date: newDate,
-      time: newTime,
       is_completed: false
     }
     const { data, error } = await supabase.from('plans').insert([plan]).select()
     if (error) alert(error.message)
     else {
       setPlans([...plans, data[0]].sort((a,b) => {
-        if (a.date !== b.date) return a.date.localeCompare(b.date)
-        return a.time.localeCompare(b.time)
+        return a.date.localeCompare(b.date)
       }))
       setNewTitle('')
       setIsAdding(false)
@@ -102,7 +97,6 @@ export default function PlansTab() {
                     </div>
                     <div className="flex-1">
                       <div className={`font-bold text-on-surface ${plan.is_completed ? 'line-through' : ''}`}>{plan.title}</div>
-                      <div className="text-xs text-outline">{plan.time}</div>
                     </div>
                     <button onClick={() => deletePlan(plan.id)} className="text-outline hover:text-error transition-colors p-1"><span className="material-symbols-outlined text-lg">delete</span></button>
                   </div>
@@ -211,10 +205,6 @@ export default function PlansTab() {
                 <div className="flex-1">
                   <label className="text-[10px] font-bold text-on-surface-variant uppercase mb-1 block">{t('plans.date')}</label>
                   <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="w-full text-sm bg-surface/50 border border-outline-variant/30 rounded-lg px-3 py-2 focus:outline-none" />
-                </div>
-                <div className="flex-1">
-                  <label className="text-[10px] font-bold text-on-surface-variant uppercase mb-1 block">{t('plans.time')}</label>
-                  <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} className="w-full text-sm bg-surface/50 border border-outline-variant/30 rounded-lg px-3 py-2 focus:outline-none" />
                 </div>
               </div>
               <div className="flex gap-2">
