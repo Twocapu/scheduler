@@ -38,7 +38,8 @@
     "resetAll": "Reset all routines",
     "addNewBtn": "Add New Routine",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "resetBtn": "Reset"
   },
   "nav": {
     "routine": "Routine",

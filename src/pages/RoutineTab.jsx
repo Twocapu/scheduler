@@ -146,13 +146,22 @@ export default function RoutineTab() {
         
         {/* Top Add Button & Form */}
         {!isAdding ? (
-          <button 
-            onClick={() => setIsAdding(true)}
-            className="w-full mb-6 bg-primary-container/30 hover:bg-primary-container/50 text-primary-fixed-variant font-bold py-4 rounded-xl border border-primary/10 border-dashed transition-all flex justify-center items-center gap-2"
-          >
-            <span className="material-symbols-outlined">add_circle</span>
-            {t('routines.addNewBtn')}
-          </button>
+          <div className="flex gap-4 mb-6">
+            <button 
+              onClick={resetAllRoutines}
+              className="flex-1 bg-surface-variant/30 hover:bg-surface-variant/50 text-on-surface-variant font-bold py-4 rounded-xl border border-outline-variant/20 transition-all flex justify-center items-center gap-2 active:scale-95"
+            >
+              <span className="material-symbols-outlined">refresh</span>
+              {t('routines.resetBtn')}
+            </button>
+            <button 
+              onClick={() => setIsAdding(true)}
+              className="flex-[2] bg-primary-container/30 hover:bg-primary-container/50 text-primary-fixed-variant font-bold py-4 rounded-xl border border-primary/10 border-dashed transition-all flex justify-center items-center gap-2 active:scale-95"
+            >
+              <span className="material-symbols-outlined">add_circle</span>
+              {t('routines.addNewBtn')}
+            </button>
+          </div>
         ) : (
           <div className="mb-6 bg-white rounded-2xl p-5 shadow-sm border border-outline-variant/20">
             <h3 className="font-bold text-on-surface mb-3">{t('form.addNewTask')}</h3>

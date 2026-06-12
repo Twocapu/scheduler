@@ -38,7 +38,8 @@
     "resetAll": "모든 루틴 리셋",
     "addNewBtn": "새 루틴 추가",
     "cancel": "취소",
-    "save": "저장"
+    "save": "저장",
+    "resetBtn": "초기화"
   },
   "nav": {
     "routine": "루틴(Routine)",
